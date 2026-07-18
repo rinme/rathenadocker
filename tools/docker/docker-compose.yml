@@ -73,30 +73,26 @@ services:
     depends_on:
       - db
 
-  fluxcp-bootstrap:
-    image: "alpine/git:2.47.2"
-    container_name: "rathena-fluxcp-bootstrap"
-    command: >-
-      sh -c "if [ -f /fluxcp/index.php ]; then
-      echo 'FluxCP already exists at /fluxcp';
-      else
-      git clone --depth 1 ${FLUXCP_REPO_URL:-https://github.com/rathena/FluxCP.git} /tmp/fluxcp &&
-      cp -a /tmp/fluxcp/. /fluxcp/ &&
-      echo 'FluxCP downloaded into /fluxcp';
-      fi"
-    volumes:
-      - "${HOST_FLUXCP_PATH:-./fluxcp}:/fluxcp"
-    profiles:
-      - bootstrap
-
   fluxcp:
-    image: "php:8.2-apache"
+    build:
+      context: .
+      dockerfile: fluxcp-image/Dockerfile
     container_name: "rathena-fluxcp"
-    command: sh -c "docker-php-ext-install pdo_mysql mysqli && apache2-foreground"
     ports:
       - "${FLUXCP_PORT:-8000}:80"
-    volumes:
-      - "${HOST_FLUXCP_PATH:-./fluxcp}:/var/www/html"
+    environment:
+      BASE_PATH: "${FLUXCP_BASE_PATH:-}"
+      SITE_TITLE: "${FLUXCP_SITE_TITLE:-Flux Control Panel}"
+      DOMAIN: "${FLUXCP_DOMAIN:-localhost}"
+      RO_SERVER_NAME: "${FLUXCP_RO_SERVER_NAME:-rAthena}"
+      INSTALLER_PASSWORD: "${FLUXCP_INSTALLER_PASSWORD:-secretpassword}"
+      DB_HOST: db
+      DB_USER: "${DB_USER:-ragnarok}"
+      DB_PASSWORD: "${DB_PASSWORD:-ragnarok}"
+      DB_NAME: "${DB_DATABASE:-ragnarok}"
+      LOGIN_SERVER_HOST: login
+      CHAR_SERVER_HOST: char
+      MAP_SERVER_HOST: map
     depends_on:
       - db
 

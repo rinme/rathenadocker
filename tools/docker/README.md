@@ -18,18 +18,14 @@ Then stop everything with:
 docker compose down
 ```
 
-## FluxCP (ready-to-use bootstrap)
+## FluxCP
 
-Download FluxCP into `tools/docker/fluxcp`:
-
-```bash
-docker compose run --rm --profile bootstrap fluxcp-bootstrap
-```
+FluxCP now follows the `fluxcp-docker` style: it is built into its own image from `tools/docker/fluxcp-image/Dockerfile`, so you do not need a pre-cloned `tools/docker/fluxcp` directory.
 
 Start FluxCP:
 
 ```bash
-docker compose up -d fluxcp
+docker compose up -d --build fluxcp
 ```
 
 ## Common commands
@@ -48,7 +44,6 @@ Compose supports explicit host-path variables to avoid relative path resolution 
 - `HOST_RATHENA_PATH` (default: `../..`)
 - `HOST_DOCKER_PATH` (default: `.`)
 - `HOST_SQL_FILES_PATH` (default: `../../sql-files`)
-- `HOST_FLUXCP_PATH` (default: `./fluxcp`)
 
 Use absolute host paths in your `.env` when deploying from Portainer/Dockhand.
 
@@ -58,8 +53,15 @@ Example:
 HOST_RATHENA_PATH=/path/to/rathenadocker
 HOST_DOCKER_PATH=/path/to/rathenadocker/tools/docker
 HOST_SQL_FILES_PATH=/path/to/rathenadocker/sql-files
-HOST_FLUXCP_PATH=/path/to/rathenadocker/tools/docker/fluxcp
 ```
+
+FluxCP app settings are also configurable from `.env`:
+
+- `FLUXCP_BASE_PATH`
+- `FLUXCP_SITE_TITLE`
+- `FLUXCP_DOMAIN`
+- `FLUXCP_RO_SERVER_NAME`
+- `FLUXCP_INSTALLER_PASSWORD`
 
 ## Notes
 

@@ -18,6 +18,8 @@ COPY --chown=www-data:www-data ./fluxcp-image/config/application-env.php ./fluxc
 
 RUN sed -i 's/application.php/application-env.php/g' /var/www/html/index.php \
     && sed -i 's/servers.php/servers-env.php/g' /var/www/html/index.php \
+    && perl -0pi -e 's/if \(array_key_exists\(\$serverName, \$registry\) && \$registry\[\$serverName\] instanceOf Flux_LoginAthenaGroup\) \{/if (\$serverName !== null \&\& array_key_exists(\$serverName, \$registry) \&\& \$registry[\$serverName] instanceOf Flux_LoginAthenaGroup) {/g' /var/www/html/lib/Flux.php \
+    && perl -0pi -e 's/if \(array_key_exists\(\$serverName, \$registry\) && array_key_exists\(\$athenaServerName, \$registry\[\$serverName\]\) &&/if (\$serverName !== null \&\& \$athenaServerName !== null \&\& array_key_exists(\$serverName, \$registry) \&\& is_array(\$registry[\$serverName]) \&\& array_key_exists(\$athenaServerName, \$registry[\$serverName]) \&\&/g' /var/www/html/lib/Flux.php \
     && docker-php-ext-configure zip \
     && docker-php-ext-install pdo pdo_mysql zip gd mysqli
 

@@ -1,21 +1,26 @@
-if [ ! -f /rathena/login-server ]; then
-  export runBuild=1;
-elif [ ! -f /rathena/char-server ]; then
-  export runBuild=1;
-elif [ ! -f /rathena/map-server ]; then
-  export runBuild=1;
-else
-  export runBuild=0;
+#!/bin/sh
+set -eu
+
+cd /rathena
+
+if [ ! -x /rathena/configure ]; then
+  echo "Error: /rathena/configure was not found. Check HOST_RATHENA_PATH mount in docker-compose.yml." >&2
+  exit 1
 fi
 
-if [ "${runBuild}" -eq "1" ]; then
-  ### checking that ./configure has ran by looking for make file
-  if [ ! -f /rathena/make ]; then
-    echo "Warning: ./configure will be executed with provided values";
-    echo "Make sure you have set the variables you want in the docker-compose.yml file";
-    echo $BUILDER_CONFIGURE
-    ./configure $BUILDER_CONFIGURE
+if [ ! -f /rathena/login-server ] || [ ! -f /rathena/char-server ] || [ ! -f /rathena/map-server ]; then
+  run_build=1
+else
+  run_build=0
+fi
+
+if [ "${run_build}" -eq "1" ]; then
+  if [ ! -f /rathena/Makefile ]; then
+    echo "Info: Running /rathena/configure ${BUILDER_CONFIGURE:-}"
+    /rathena/configure ${BUILDER_CONFIGURE:-}
   fi
 
-  make clean server;
+  make clean server
+else
+  echo "Info: Existing server binaries detected. Skipping build."
 fi

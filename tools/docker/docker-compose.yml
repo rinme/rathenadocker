@@ -1,4 +1,17 @@
-version: "3.7"
+x-rathena-base: &rathena-base
+  image: "rathena:local"
+  working_dir: /rathena
+  volumes:
+    - "${HOST_RATHENA_PATH:-../..}:/rathena"
+    - "${HOST_DOCKER_PATH:-.}/asset/inter_conf.txt:/rathena/conf/import/inter_conf.txt"
+    - "${HOST_DOCKER_PATH:-.}/asset/char_conf.txt:/rathena/conf/import/char_conf.txt"
+    - "${HOST_DOCKER_PATH:-.}/asset/map_conf.txt:/rathena/conf/import/map_conf.txt"
+  init: true
+  tty: true
+  stdin_open: true
+  build:
+    context: .
+    dockerfile: Dockerfile
 
 services:
   db:
@@ -8,7 +21,7 @@ services:
       - "${DB_PORT:-3306}:3306"
     volumes:
       - "rathenadb:/var/lib/mysql"
-      - "../../sql-files/:/docker-entrypoint-initdb.d"
+      - "${HOST_SQL_FILES_PATH:-../../sql-files}:/docker-entrypoint-initdb.d"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-ragnarok}
       MYSQL_DATABASE: ${DB_DATABASE:-ragnarok}
@@ -16,84 +29,38 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-ragnarok}
 
   builder:
-    image: "rathena:local"
+    <<: *rathena-base
     container_name: "rathena-builder"
-    command: "/rathena/tools/docker/builder.sh"
-    volumes:
-      - "../..:/rathena"
-      - "./asset/inter_conf.txt:/rathena/conf/import/inter_conf.txt"
-      - "./asset/char_conf.txt:/rathena/conf/import/char_conf.txt"
-      - "./asset/map_conf.txt:/rathena/conf/import/map_conf.txt"
-    init: true
-    tty: true
-    stdin_open: true
-    build:
-      context: .
-      dockerfile: Dockerfile
+    command: sh -c "sh /rathena/tools/docker/builder.sh"
     environment:
       BUILDER_CONFIGURE: "--enable-packetver=${PACKET_VER:-20211103}"
 
   login:
-    image: "rathena:local"
+    <<: *rathena-base
     container_name: "rathena-login"
     command: sh -c "/bin/wait-for db:3306 -- /rathena/login-server"
     ports:
       - "${LOGIN_PORT:-6900}:6900"
-    volumes:
-      - "../..:/rathena"
-      - "./asset/inter_conf.txt:/rathena/conf/import/inter_conf.txt"
-      - "./asset/char_conf.txt:/rathena/conf/import/char_conf.txt"
-      - "./asset/map_conf.txt:/rathena/conf/import/map_conf.txt"
-    init: true
-    tty: true
-    stdin_open: true
-    build:
-      context: .
-      dockerfile: Dockerfile
     depends_on:
       - db
 
   char:
-    image: "rathena:local"
+    <<: *rathena-base
     container_name: "rathena-char"
     command: sh -c "/bin/wait-for db:3306 -- /rathena/char-server"
     ports:
       - "${CHAR_PORT:-6121}:6121"
-    volumes:
-      - "../..:/rathena"
-      - "./asset/inter_conf.txt:/rathena/conf/import/inter_conf.txt"
-      - "./asset/char_conf.txt:/rathena/conf/import/char_conf.txt"
-      - "./asset/map_conf.txt:/rathena/conf/import/map_conf.txt"
-    init: true
-    tty: true
-    stdin_open: true
-    build:
-      context: .
-      dockerfile: Dockerfile
     depends_on:
       - login
 
   map:
-    image: "rathena:local"
+    <<: *rathena-base
     container_name: "rathena-map"
     command: sh -c "/bin/wait-for db:3306 -- /rathena/map-server"
     ports:
       - "${MAP_PORT:-5121}:5121"
-    volumes:
-      - "../..:/rathena"
-      - "./asset/inter_conf.txt:/rathena/conf/import/inter_conf.txt"
-      - "./asset/char_conf.txt:/rathena/conf/import/char_conf.txt"
-      - "./asset/map_conf.txt:/rathena/conf/import/map_conf.txt"
-    init: true
-    tty: true
-    stdin_open: true
-    build:
-      context: .
-      dockerfile: Dockerfile
     depends_on:
       - char
-
-  # --- New Services Below ---
 
   phpmyadmin:
     image: "phpmyadmin:latest"
@@ -106,15 +73,30 @@ services:
     depends_on:
       - db
 
+  fluxcp-bootstrap:
+    image: "alpine/git:2.47.2"
+    container_name: "rathena-fluxcp-bootstrap"
+    command: >-
+      sh -c "if [ -f /fluxcp/index.php ]; then
+      echo 'FluxCP already exists at /fluxcp';
+      else
+      git clone --depth 1 ${FLUXCP_REPO_URL:-https://github.com/rathena/FluxCP.git} /tmp/fluxcp &&
+      cp -a /tmp/fluxcp/. /fluxcp/ &&
+      echo 'FluxCP downloaded into /fluxcp';
+      fi"
+    volumes:
+      - "${HOST_FLUXCP_PATH:-./fluxcp}:/fluxcp"
+    profiles:
+      - bootstrap
+
   fluxcp:
     image: "php:8.2-apache"
     container_name: "rathena-fluxcp"
-    # Installs the database extensions FluxCP needs before starting Apache
     command: sh -c "docker-php-ext-install pdo_mysql mysqli && apache2-foreground"
     ports:
       - "${FLUXCP_PORT:-8000}:80"
     volumes:
-      - "./fluxcp:/var/www/html" # Map local folder directly to web root
+      - "${HOST_FLUXCP_PATH:-./fluxcp}:/var/www/html"
     depends_on:
       - db
 
